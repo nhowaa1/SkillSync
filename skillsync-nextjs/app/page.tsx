@@ -1235,7 +1235,7 @@ const iconPaths = {
 type IconName = keyof typeof iconPaths;
 
 function cn(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
+  return classes.filter(Boolean).join(" ");s
 }
 
 function SvgIcon({ name, className = "h-6 w-6" }: { name: IconName; className?: string }) {
@@ -1254,36 +1254,6 @@ function averageGroup(responses: Record<string, number>, ids: string[]): number 
 
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
-
-const competencyLabels: Record<string, string> = {
-  ws_achievement: "Achievement Orientation",
-  ws_leadership: "Leadership Orientation",
-  ws_cooperation: "Cooperation",
-  ws_empathy: "Empathy",
-  ws_dependability: "Dependability",
-  ws_attention: "Attention to Detail",
-  ws_stress: "Stress Tolerance",
-
-  sk_reading: "Reading Comprehension",
-  sk_critical: "Critical Thinking & Problem Solving",
-  sk_communication: "Communication Skills",
-  sk_technical: "Technical & Digital Skills",
-  sk_coordination: "Coordination",
-  sk_time: "Time Management",
-
-  ab_cognitive: "Cognitive Abilities",
-  ab_quantitative: "Quantitative Abilities",
-  ab_perceptual: "Perceptual / Attention Abilities",
-  ab_spatial: "Spatial Abilities",
-  ab_learning: "Information Processing & Learning Ability",
-
-  kn_math: "Mathematics",
-  kn_science: "Science",
-  kn_computers: "Computers and Electronics",
-  kn_business: "Business & Management",
-  kn_english: "English Language & Communication",
-  kn_health: "Health Services",
-};
 
 function normalizeAssessmentResponses(responses: Record<string, number>) {
   return {
@@ -1486,87 +1456,45 @@ function calculateResults(responses: Record<string, number>): CareerResult[] {
     let weightedSum = 0;
 
     Object.entries(pathway.weights).forEach(([key, weight]) => {
-      const score = responses[key];
-
-      if (typeof score === "number") {
-        weightedSum += score * weight;
+      if (responses[key] !== undefined) {
+        weightedSum += responses[key] * weight;
         totalWeight += weight;
       }
     });
 
-    const rawScore = totalWeight > 0 ? weightedSum / totalWeight : 0;
-    const normalizedScore = (rawScore / 5) * 100;
+    const normalizedScore = totalWeight > 0 ? ((weightedSum / totalWeight) / 5) * 100 : 0;
 
     return {
       ...pathway,
       score: Math.round(normalizedScore),
-      matchedStrengths: getMatchedStrengths(pathway, responses),
+      matchedStrengths: getMatchedStrengths(pathway, responses)
     };
   });
 
-  return scores.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-
-    const bKnowledge = getDomainAverage(b, responses, "kn_");
-    const aKnowledge = getDomainAverage(a, responses, "kn_");
-    if (bKnowledge !== aKnowledge) return bKnowledge - aKnowledge;
-
-    const bSkills = getDomainAverage(b, responses, "sk_");
-    const aSkills = getDomainAverage(a, responses, "sk_");
-    if (bSkills !== aSkills) return bSkills - aSkills;
-
-    const bWorkStyles = getDomainAverage(b, responses, "ws_");
-    const aWorkStyles = getDomainAverage(a, responses, "ws_");
-    if (bWorkStyles !== aWorkStyles) return bWorkStyles - aWorkStyles;
-
-    const bAbilities = getDomainAverage(b, responses, "ab_");
-    const aAbilities = getDomainAverage(a, responses, "ab_");
-    if (bAbilities !== aAbilities) return bAbilities - aAbilities;
-
-    return a.name.localeCompare(b.name);
-  });
+  return scores.sort((a, b) => b.score - a.score);
 }
 
-function getDomainAverage(
-  pathway: CareerPathway,
-  responses: Record<string, number>,
-  prefix: string
-): number {
-  const values = Object.keys(pathway.weights)
-    .filter((key) => key.startsWith(prefix))
-    .map((key) => responses[key])
-    .filter((value): value is number => typeof value === "number");
+function getMatchedStrengths(pathway: CareerPathway, responses: Record<string, number>) {
+  const allQuestions = [
+    ...workStyleQuestions,
+    ...skillQuestions,
+    ...abilityQuestions,
+    ...knowledgeQuestions
+  ];
 
-  if (values.length === 0) return 0;
+  const strengths: string[] = [];
 
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function getMatchedStrengths(pathway: CareerPathway, responses: Record<string, number>): string[] {
-  const weightedCompetencies = Object.entries(pathway.weights)
-    .map(([key, weight]) => {
-      const score = responses[key] ?? 0;
-
-      return {
-        key,
-        label: competencyLabels[key] ?? key,
-        score,
-        weight,
-        contribution: score * weight,
-      };
-    })
-    .sort((a, b) => b.contribution - a.contribution);
-
-  const strongMatches = weightedCompetencies
-    .filter((item) => item.score >= 4)
+  Object.entries(pathway.weights)
+    .sort((a, b) => b[1] - a[1])
     .slice(0, 4)
-    .map((item) => item.label);
+    .forEach(([key]) => {
+      const question = allQuestions.find((q) => q.id === key);
+      if (question && responses[key] >= 4) {
+        strengths.push(question.label);
+      }
+    });
 
-  if (strongMatches.length > 0) return strongMatches;
-
-  return weightedCompetencies
-    .slice(0, 3)
-    .map((item) => item.label);
+  return strengths.length > 0 ? strengths : ["General Aptitude"];
 }
 
 export default function Home() {
@@ -1820,6 +1748,37 @@ function FrameworkCard({ title, description, icon }: { title: string; descriptio
   );
 }
 
+const ratingOptions = [
+  { value: 1, emoji: "😕", label: "Strongly Disagree", short: "Not like me" },
+  { value: 2, emoji: "🤔", label: "Disagree", short: "Rarely me" },
+  { value: 3, emoji: "😐", label: "Neutral", short: "Sometimes" },
+  { value: 4, emoji: "🙂", label: "Agree", short: "Mostly me" },
+  { value: 5, emoji: "⭐", label: "Strongly Agree", short: "Very me" },
+];
+
+const sectionMascots: Record<string, { badge: string; quest: string; accent: string }> = {
+  "Work Styles": {
+    badge: "🧭",
+    quest: "Discover how you naturally work with tasks and people.",
+    accent: "from-teal-400 via-cyan-400 to-sky-500",
+  },
+  Skills: {
+    badge: "🛠️",
+    quest: "Unlock the skills you already use when solving problems.",
+    accent: "from-indigo-500 via-violet-500 to-fuchsia-500",
+  },
+  Abilities: {
+    badge: "⚡",
+    quest: "Map your natural strengths and learning capabilities.",
+    accent: "from-amber-400 via-orange-400 to-rose-500",
+  },
+  "Knowledge Areas": {
+    badge: "📚",
+    quest: "Explore the subjects and fields that feel familiar to you.",
+    accent: "from-emerald-400 via-teal-500 to-cyan-600",
+  },
+};
+
 function AssessmentPage({
   currentSection,
   currentSectionData,
@@ -1841,93 +1800,178 @@ function AssessmentPage({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onResponseChange: (questionId: string, value: number) => void;
 }) {
+  const answeredInSection = currentSectionData.questions.filter((question) => responses[question.id] !== undefined).length;
+  const totalInSection = currentSectionData.questions.length;
+  const sectionProgress = Math.round((answeredInSection / totalInSection) * 100);
+  const vibe = sectionMascots[currentSectionData.name] ?? sectionMascots["Work Styles"];
+  const nextDisabled = answeredInSection !== totalInSection;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-navy-50 to-teal-50">
-      <nav className="sticky top-0 z-50 border-b border-navy-100 bg-white/80 px-6 py-4 backdrop-blur-lg">
-        <div className="mx-auto flex max-w-4xl items-center justify-between">
-          <button onClick={onBackHome} className="flex items-center gap-2 text-navy-600 transition-colors hover:text-navy-900">
-            <SvgIcon name="back" className="h-5 w-5" />
-            <span className="font-medium">Back to Home</span>
+    <div className="assessment-stage relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-navy-900 to-teal-950 text-navy-900">
+      <div className="assessment-orb assessment-orb-one" />
+      <div className="assessment-orb assessment-orb-two" />
+      <div className="assessment-grid" />
+
+      <nav className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/70 px-4 py-3 text-white backdrop-blur-xl md:px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+          <button onClick={onBackHome} className="flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm text-white/80 transition-all hover:bg-white/20 hover:text-white">
+            <SvgIcon name="back" className="h-4 w-4" />
+            <span className="font-medium">Home</span>
           </button>
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-teal-600">
-              <SvgIcon name="lightning" className="h-4 w-4 text-white" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-300 to-cyan-500 shadow-lg shadow-teal-500/30">
+              <SvgIcon name="lightning" className="h-5 w-5 text-white" />
             </div>
-            <span className="font-jakarta font-bold text-navy-900">SkillSync</span>
+            <div>
+              <p className="font-jakarta text-sm font-bold leading-none text-white">SkillSync Quest</p>
+              <p className="text-xs text-white/50">Career Profiling Adventure</p>
+            </div>
           </div>
         </div>
       </nav>
 
-      <main className="mx-auto max-w-4xl px-6 py-8">
-        <div className="mb-8">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-jakarta font-bold text-navy-900">Career Profiling Assessment</h2>
-            <span className="text-sm text-navy-500">Step {currentSection} of 4</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-navy-100">
-            <div className="progress-fill h-full rounded-full bg-gradient-to-r from-teal-500 to-teal-400" style={{ width: `${progress}%` }} />
-          </div>
-          <div className="mt-2 flex justify-between">
-            <span className="text-xs text-navy-400">{currentSectionData.name}</span>
-            <span className="text-xs font-medium text-teal-600">{progress}%</span>
-          </div>
+      <main className="relative z-10 mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
+        <div className="mb-6 grid gap-3 md:grid-cols-4">
+          {sections.map((section, index) => {
+            const isActive = currentSection === index + 1;
+            const isDone = currentSection > index + 1;
+
+            return (
+              <div
+                key={section.name}
+                className={cn(
+                  "rounded-2xl border p-4 transition-all",
+                  isActive
+                    ? "border-teal-300 bg-white text-navy-900 shadow-xl shadow-teal-500/20"
+                    : isDone
+                      ? "border-emerald-300/40 bg-emerald-400/15 text-white"
+                      : "border-white/10 bg-white/10 text-white/70"
+                )}
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-2xl">{sectionMascots[section.name]?.badge ?? "✨"}</span>
+                  <span className={cn("rounded-full px-2 py-1 text-xs font-bold", isActive ? "bg-teal-100 text-teal-700" : "bg-white/10 text-white/70")}>Quest {index + 1}</span>
+                </div>
+                <p className="text-sm font-bold">{section.name}</p>
+                <p className="mt-1 text-xs opacity-70">{isDone ? "Completed" : isActive ? "In progress" : "Locked next"}</p>
+              </div>
+            );
+          })}
         </div>
 
         <form onSubmit={onSubmit}>
-          <section className="glass-card mb-6 rounded-2xl p-8 shadow-lg">
-            <div className="mb-6 flex items-center gap-4">
-              <div className={cn("flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br", currentSectionData.iconClass)}>
-                <SvgIcon name={currentSectionData.icon} className="h-6 w-6 text-white" />
+          <section className="overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl shadow-teal-950/40">
+            <div className={cn("relative overflow-hidden bg-gradient-to-r p-6 text-white md:p-8", vibe.accent)}>
+              <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
+              <div className="absolute -bottom-12 left-20 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+              <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white/20 text-4xl shadow-lg backdrop-blur-md">
+                    {vibe.badge}
+                  </div>
+                  <div>
+                    <div className="mb-2 inline-flex rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white/90">
+                      Quest {currentSection} of 4
+                    </div>
+                    <h2 className="font-jakarta text-2xl font-black md:text-3xl">{currentSectionData.title}</h2>
+                    <p className="mt-2 max-w-2xl text-sm text-white/90 md:text-base">{vibe.quest}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl bg-white/20 p-4 text-center backdrop-blur-md">
+                  <p className="text-3xl font-black">{answeredInSection}/{totalInSection}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-white/80">Answered</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-jakarta text-xl font-bold text-navy-900">{currentSectionData.title}</h3>
-                <p className="text-sm text-navy-500">{currentSectionData.subtitle}</p>
+
+              <div className="relative mt-7">
+                <div className="mb-2 flex items-center justify-between text-sm font-semibold text-white/90">
+                  <span>Section Power Meter</span>
+                  <span>{sectionProgress}% complete</span>
+                </div>
+                <div className="h-4 overflow-hidden rounded-full bg-white/20 p-1">
+                  <div className="progress-fill h-full rounded-full bg-white shadow-lg" style={{ width: `${sectionProgress}%` }} />
+                </div>
               </div>
             </div>
 
-            <RatingHeader />
+            <div className="bg-gradient-to-b from-white to-teal-50/50 p-4 md:p-8">
+              <div className="mb-6 rounded-3xl border border-teal-100 bg-white p-4 shadow-sm md:p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="font-jakarta text-lg font-bold text-navy-900">Choose what feels true for you</p>
+                    <p className="text-sm text-navy-500">There are no wrong answers. Your honest responses make the pathway match better.</p>
+                  </div>
+                  <RatingHeader />
+                </div>
+              </div>
 
-            <div className="space-y-6">
-              {currentSectionData.questions.map((question, index) => (
-                <QuestionCard
-  key={question.id}
-  question={question}
-  index={index}
-  value={responses[question.id]}
-  onChange={onResponseChange}
-  showGroup={
-    index === 0 ||
-    question.group !== currentSectionData.questions[index - 1]?.group
-  }
-/>
-              ))}
+              <div className="space-y-5">
+                {currentSectionData.questions.map((question, index) => (
+                  <QuestionCard
+                    key={question.id}
+                    question={question}
+                    index={index}
+                    value={responses[question.id]}
+                    onChange={onResponseChange}
+                    showGroup={
+                      index === 0 ||
+                      question.group !== currentSectionData.questions[index - 1]?.group
+                    }
+                  />
+                ))}
+              </div>
             </div>
           </section>
 
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={onPrevious}
-              className={cn(
-                "flex items-center gap-2 rounded-xl border border-navy-200 px-6 py-3 font-semibold text-navy-700 transition-all hover:bg-navy-50",
-                currentSection === 1 && "invisible"
-              )}
-            >
-              <SvgIcon name="back" className="h-5 w-5" />
-              Back
-            </button>
+          <div className="sticky bottom-4 z-20 mt-6 rounded-3xl border border-white/20 bg-white/90 p-4 shadow-2xl backdrop-blur-xl">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={onPrevious}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-2xl border border-navy-200 px-6 py-3 font-semibold text-navy-700 transition-all hover:bg-navy-50",
+                  currentSection === 1 && "hidden sm:invisible sm:flex"
+                )}
+              >
+                <SvgIcon name="back" className="h-5 w-5" />
+                Back
+              </button>
 
-            {currentSection < sections.length ? (
-              <button type="button" onClick={onNext} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 px-8 py-3 font-semibold text-white transition-all hover:from-teal-400 hover:to-teal-500">
-                Next
-                <SvgIcon name="arrowRight" className="h-5 w-5" />
-              </button>
-            ) : (
-              <button type="submit" className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-navy-700 to-navy-800 px-8 py-3 font-semibold text-white transition-all hover:from-navy-600 hover:to-navy-700">
-                <SvgIcon name="check" className="h-5 w-5" />
-                Submit Assessment
-              </button>
-            )}
+              <div className="order-first text-center sm:order-none">
+                <p className="text-sm font-bold text-navy-900">{nextDisabled ? `${totalInSection - answeredInSection} item(s) left in this quest` : "Quest cleared! Ready to continue."}</p>
+                <p className="text-xs text-navy-500">Overall journey: {progress}%</p>
+              </div>
+
+              {currentSection < sections.length ? (
+                <button
+                  type="button"
+                  onClick={onNext}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-2xl px-8 py-3 font-bold text-white shadow-lg transition-all",
+                    nextDisabled
+                      ? "bg-navy-300 shadow-none"
+                      : "bg-gradient-to-r from-teal-500 to-cyan-500 shadow-teal-500/30 hover:-translate-y-0.5 hover:from-teal-400 hover:to-cyan-400"
+                  )}
+                >
+                  Next Quest
+                  <SvgIcon name="arrowRight" className="h-5 w-5" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-2xl px-8 py-3 font-bold text-white shadow-lg transition-all",
+                    nextDisabled
+                      ? "bg-navy-300 shadow-none"
+                      : "bg-gradient-to-r from-violet-600 to-teal-500 shadow-violet-500/30 hover:-translate-y-0.5 hover:from-violet-500 hover:to-teal-400"
+                  )}
+                >
+                  <SvgIcon name="check" className="h-5 w-5" />
+                  Reveal My Matches
+                </button>
+              )}
+            </div>
           </div>
         </form>
       </main>
@@ -1937,12 +1981,14 @@ function AssessmentPage({
 
 function RatingHeader() {
   return (
-    <div className="mb-6 px-20 max-sm:px-0">
-      <div className="grid grid-cols-5 gap-3 text-center text-xs text-navy-500">
-        {ratingLabels.map((label) => (
-          <span key={label}>{label}</span>
-        ))}
-      </div>
+    <div className="grid grid-cols-5 gap-2 text-center">
+      {ratingOptions.map((option) => (
+        <div key={option.value} className="rounded-2xl bg-teal-50 px-2 py-2 text-xs text-navy-600">
+          <div className="text-lg leading-none">{option.emoji}</div>
+          <div className="mt-1 hidden font-semibold md:block">{option.value}</div>
+          <div className="hidden text-[10px] leading-tight text-navy-500 lg:block">{option.label}</div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1963,49 +2009,65 @@ function QuestionCard({
   return (
     <>
       {showGroup && question.group && (
-        <div className="mt-8 mb-3 rounded-xl bg-navy-100 px-5 py-3">
-          <h4 className="font-jakarta text-lg font-bold text-navy-900">
+        <div className="sticky top-20 z-10 mt-8 mb-3 inline-flex rounded-full border border-teal-200 bg-white/95 px-5 py-2 shadow-md backdrop-blur-md">
+          <span className="mr-2">✨</span>
+          <h4 className="font-jakarta text-sm font-black uppercase tracking-wide text-teal-700">
             {question.group}
           </h4>
         </div>
       )}
 
-      <div className="rounded-xl border border-navy-100 bg-white p-5 transition-colors hover:border-teal-200">
-        <div className="flex items-start gap-4">
-          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-navy-100 text-sm font-semibold text-navy-600">
-            {index + 1}
+      <div className={cn("question-card rounded-3xl border p-4 shadow-sm transition-all md:p-5", value ? "border-teal-200 bg-white shadow-teal-100" : "border-navy-100 bg-white hover:border-teal-200 hover:shadow-lg")}>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start">
+          <span className={cn("flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl text-sm font-black", value ? "bg-teal-500 text-white" : "bg-navy-100 text-navy-600")}>
+            {value ? "✓" : index + 1}
           </span>
 
           <div className="flex-1">
-            <h4 className="mb-4 font-semibold text-navy-900">
-              {question.label}
-            </h4>
+            <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+              <h4 className="font-jakarta text-base font-bold leading-relaxed text-navy-900 md:text-lg">
+                {question.label}
+              </h4>
+              {value && (
+                <span className="inline-flex w-fit rounded-full bg-teal-100 px-3 py-1 text-xs font-bold text-teal-700">
+                  {ratingOptions.find((option) => option.value === value)?.short}
+                </span>
+              )}
+            </div>
 
             {question.desc && (
               <p className="mb-4 text-sm text-navy-500">{question.desc}</p>
             )}
 
-            <div className="grid grid-cols-5 gap-3">
-              {[1, 2, 3, 4, 5].map((number) => {
-                const inputId = `${question.id}_${number}`;
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
+              {ratingOptions.map((option) => {
+                const inputId = `${question.id}_${option.value}`;
+                const selected = value === option.value;
 
                 return (
-                  <div className="likert-option" key={number}>
+                  <div className="likert-option" key={option.value}>
                     <input
                       type="radio"
                       name={question.id}
                       id={inputId}
-                      value={number}
-                      checked={value === number}
-                      onChange={() => onChange(question.id, number)}
+                      value={option.value}
+                      checked={selected}
+                      onChange={() => onChange(question.id, option.value)}
                       className="sr-only"
                     />
 
                     <label
                       htmlFor={inputId}
-                      className="block w-full cursor-pointer rounded-lg border-2 border-navy-200 py-3 text-center text-sm font-medium text-navy-600 hover:border-teal-400"
+                      className={cn(
+                        "flex h-full cursor-pointer flex-row items-center justify-between gap-3 rounded-2xl border-2 px-3 py-3 text-left transition-all sm:flex-col sm:justify-center sm:text-center",
+                        selected
+                          ? "border-teal-500 bg-gradient-to-br from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-500/30"
+                          : "border-navy-100 bg-navy-50 text-navy-600 hover:-translate-y-0.5 hover:border-teal-300 hover:bg-teal-50"
+                      )}
                     >
-                      {number}
+                      <span className="text-2xl leading-none">{option.emoji}</span>
+                      <span className="font-jakarta text-sm font-black">{option.value}</span>
+                      <span className="text-xs font-semibold leading-tight opacity-80">{option.label}</span>
                     </label>
                   </div>
                 );
