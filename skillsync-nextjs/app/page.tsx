@@ -2,8 +2,9 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { createRespondentCode, saveAssessmentRecord } from "@/lib/saveAssessment";
+import jsPDF from "jspdf";
 
-type PageName = "landing" | "assessment" | "results";
+type PageName = "landing" | "studentInfo" | "assessment" | "results";
 
 type Question = {
   id: string;
@@ -1505,6 +1506,12 @@ export default function Home() {
   const [results, setResults] = useState<CareerResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [studentInfo, setStudentInfo] = useState({
+  respondentCode: "",
+  gradeLevel: "",
+  strand: "",
+  section: "",
+});
 
   const currentSectionData = sections[currentSection - 1];
   const progress = currentSection * 25;
@@ -1570,27 +1577,31 @@ export default function Home() {
 
   setResults(calculatedResults);
 
-  try {
-    const saveResult = await saveAssessmentRecord({
-      respondent_code: createRespondentCode(),
-      responses,
-      competency_scores: normalizedResponses,
-      top_results: calculatedResults.slice(0, 3),
-    });
+ try {
+  const saveResult = await saveAssessmentRecord({
+    respondent_code: studentInfo.respondentCode.trim(),
+    grade_level: studentInfo.gradeLevel,
+    strand: studentInfo.strand,
+    section: studentInfo.section.trim(),
+    responses,
+    competency_scores: normalizedResponses,
+    top_results: calculatedResults.slice(0, 3),
+  });
 
-    if (saveResult.saved) {
-      showMessage("Your assessment result has been saved.");
-    } else {
-      console.warn(saveResult.reason);
-    }
-  } catch (error) {
-    console.error(error);
-    showMessage("Results generated, but saving to the database failed.");
+  if (saveResult.saved) {
+    showMessage("Your assessment result has been saved.");
+  } else {
+    console.warn(saveResult.reason);
   }
-
-  setLoading(false);
-  setPage("results");
+} catch (error) {
+  console.error(error);
+  showMessage("Results generated, but saving to the database failed.");
 }
+
+setLoading(false);
+setPage("results");
+}
+
 function updateResponse(questionId: string, value: number) {
   setResponses((previous) => ({
     ...previous,
@@ -1600,7 +1611,16 @@ function updateResponse(questionId: string, value: number) {
 
   return (
     <main className="min-h-screen">
-      {page === "landing" && <LandingPage onStart={startAssessment} />}
+      {page === "landing" && <LandingPage onStart={() => setPage("studentInfo")} />}
+
+{page === "studentInfo" && (
+    <StudentInfoPage
+      studentInfo={studentInfo}
+      setStudentInfo={setStudentInfo}
+      onProceed={() => setPage("assessment")}
+      onBack={() => setPage("landing")}
+    />
+  )}
 
       {page === "assessment" && (
         <AssessmentPage
@@ -1627,6 +1647,159 @@ function updateResponse(questionId: string, value: number) {
       {loading && <LoadingOverlay />}
       {toast && <Toast message={toast} />}
     </main>
+  );
+}
+function StudentInfoPage({
+  studentInfo,
+  setStudentInfo,
+  onProceed,
+  onBack,
+}: {
+  studentInfo: {
+    respondentCode: string;
+    gradeLevel: string;
+    strand: string;
+    section: string;
+  };
+  setStudentInfo: React.Dispatch<
+    React.SetStateAction<{
+      respondentCode: string;
+      gradeLevel: string;
+      strand: string;
+      section: string;
+    }>
+  >;
+  onProceed: () => void;
+  onBack: () => void;
+}) {
+  const canProceed =
+    studentInfo.respondentCode.trim() !== "" &&
+    studentInfo.gradeLevel.trim() !== "" &&
+    studentInfo.strand.trim() !== "";
+
+  return (
+    <div className="gradient-bg min-h-screen px-6 py-10">
+      <div className="mx-auto max-w-2xl rounded-3xl border border-white/10 bg-white/95 p-8 shadow-2xl">
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-6 text-sm font-semibold text-navy-500 hover:text-navy-900"
+        >
+          ← Back to Home
+        </button>
+
+        <div className="mb-8">
+          <span className="mb-3 inline-flex rounded-full bg-teal-100 px-4 py-2 text-sm font-semibold text-teal-700">
+            Student Entry Form
+          </span>
+
+          <h1 className="mb-3 font-jakarta text-3xl font-bold text-navy-900">
+            Student Information
+          </h1>
+
+          <p className="text-navy-600">
+            Please provide your basic respondent information before starting the
+            assessment. This helps organize your competency profile and
+            recommendation results.
+          </p>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-navy-700">
+              Respondent Code / Student ID
+            </label>
+            <input
+              value={studentInfo.respondentCode}
+              onChange={(e) =>
+                setStudentInfo((prev) => ({
+                  ...prev,
+                  respondentCode: e.target.value,
+                }))
+              }
+              placeholder="Example: RESP-001 or Student ID"
+              className="w-full rounded-xl border border-navy-200 px-4 py-3 text-navy-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-navy-700">
+              Grade Level
+            </label>
+            <select
+              value={studentInfo.gradeLevel}
+              onChange={(e) =>
+                setStudentInfo((prev) => ({
+                  ...prev,
+                  gradeLevel: e.target.value,
+                }))
+              }
+              className="w-full rounded-xl border border-navy-200 px-4 py-3 text-navy-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+            >
+              <option value="">Select grade level</option>
+              <option value="Grade 11">Grade 11</option>
+              <option value="Grade 12">Grade 12</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-navy-700">
+              Strand
+            </label>
+            <select
+              value={studentInfo.strand}
+              onChange={(e) =>
+                setStudentInfo((prev) => ({
+                  ...prev,
+                  strand: e.target.value,
+                }))
+              }
+              className="w-full rounded-xl border border-navy-200 px-4 py-3 text-navy-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+            >
+              <option value="">Select strand</option>
+              <option value="STEM">STEM</option>
+              <option value="ABM">ABM</option>
+              <option value="HUMSS">HUMSS</option>
+              <option value="GAS">GAS</option>
+              <option value="TVL">TVL</option>
+              <option value="Arts and Design">Arts and Design</option>
+              <option value="Sports">Sports</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-navy-700">
+              Section <span className="text-navy-400">(Optional)</span>
+            </label>
+            <input
+              value={studentInfo.section}
+              onChange={(e) =>
+                setStudentInfo((prev) => ({
+                  ...prev,
+                  section: e.target.value,
+                }))
+              }
+              placeholder="Example: STEM-12A"
+              className="w-full rounded-xl border border-navy-200 px-4 py-3 text-navy-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+            />
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onProceed}
+          disabled={!canProceed}
+          className="mt-8 w-full rounded-xl bg-teal-500 px-6 py-4 font-semibold text-white transition hover:bg-teal-400 disabled:cursor-not-allowed disabled:bg-navy-300"
+        >
+          Proceed to Assessment
+        </button>
+
+        <p className="mt-4 text-center text-xs text-navy-400">
+          Your responses will be used only for career pathway recommendation and
+          research evaluation purposes.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -1996,6 +2169,115 @@ function ResultsPage({
 }) {
   const top3 = results.slice(0, 3);
 
+  function downloadResultPDF() {
+  const pdf = new jsPDF("p", "mm", "a4");
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const margin = 15;
+  let y = 20;
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(18);
+  pdf.text("SkillSync Career Pathway Recommendation Result", margin, y);
+
+  y += 10;
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(11);
+  pdf.text(
+    "This result is a non-conclusive recommendation for career exploration.",
+    margin,
+    y
+  );
+
+  y += 12;
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(12);
+  pdf.text("Top 3 Matched Career Pathways", margin, y);
+
+  y += 8;
+
+  top3.forEach((result, index) => {
+    if (y > 260) {
+      pdf.addPage();
+      y = 20;
+    }
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(12);
+    pdf.text(`${index + 1}. ${result.name}`, margin, y);
+
+    y += 7;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    pdf.text(`Match Score: ${result.score}%`, margin, y);
+
+    const strengthsText = `Matched Strengths: ${
+      result.matchedStrengths && result.matchedStrengths.length > 0
+        ? result.matchedStrengths.join(", ")
+        : "General competency alignment"
+    }`;
+
+    const wrappedStrengths = pdf.splitTextToSize(
+      strengthsText,
+      pageWidth - margin * 2
+    );
+
+    pdf.text(wrappedStrengths, margin, y);
+    y += wrappedStrengths.length * 5 + 3;
+
+    if (result.programs && result.programs.length > 0) {
+      const programsText = `Suggested Programs: ${result.programs.join(", ")}`;
+      const wrappedPrograms = pdf.splitTextToSize(
+        programsText,
+        pageWidth - margin * 2
+      );
+
+      pdf.text(wrappedPrograms, margin, y);
+      y += wrappedPrograms.length * 5 + 3;
+    }
+
+    if (result.occupations && result.occupations.length > 0) {
+      const occupationsText = `Related Occupations: ${result.occupations.join(", ")}`;
+      const wrappedOccupations = pdf.splitTextToSize(
+        occupationsText,
+        pageWidth - margin * 2
+      );
+
+      pdf.text(wrappedOccupations, margin, y);
+      y += wrappedOccupations.length * 5 + 8;
+    }
+  });
+
+  if (y > 245) {
+    pdf.addPage();
+    y = 20;
+  }
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(11);
+  pdf.text("Disclaimer", margin, y);
+
+  y += 7;
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+
+  const disclaimer =
+    "The recommendations generated by SkillSync are intended for career exploration only. They should not be treated as final career decisions and may be reviewed with a guidance counselor or career adviser.";
+
+  const wrappedDisclaimer = pdf.splitTextToSize(
+    disclaimer,
+    pageWidth - margin * 2
+  );
+
+  pdf.text(wrappedDisclaimer, margin, y);
+
+  pdf.save("SkillSync_Career_Pathway_Result.pdf");
+}
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 to-teal-50">
       <nav className="sticky top-0 z-50 border-b border-navy-100 bg-white/80 px-6 py-4 backdrop-blur-lg">
@@ -2021,9 +2303,18 @@ function ResultsPage({
               <span className="text-sm font-medium text-teal-700">Assessment Complete</span>
             </div>
             <h1 className="mb-3 font-jakarta text-3xl font-bold text-navy-900 md:text-4xl">Your Career Pathway Matches</h1>
-            <p className="mx-auto max-w-2xl text-navy-500">
-              Based on your responses, here are your top career pathway recommendations aligned with O*NET competency domains.
-            </p>
+           <p className="mx-auto max-w-2xl text-navy-500">
+  Based on your responses, here are your top career pathway recommendations
+  aligned with O*NET competency domains.
+</p>
+
+<button
+  type="button"
+  onClick={downloadResultPDF}
+  className="mt-4 rounded-xl bg-teal-500 px-6 py-3 font-semibold text-white shadow-md transition hover:bg-teal-400"
+>
+  Download Result as PDF
+</button>
           </div>
 
           <div className="mb-8 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">

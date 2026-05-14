@@ -1,5 +1,8 @@
 export type AssessmentRecord = {
   respondent_code: string;
+  grade_level?: string;
+  strand?: string;
+  section?: string;
   responses: Record<string, number>;
   competency_scores: Record<string, number>;
   top_results: unknown[];
@@ -21,8 +24,21 @@ export function createRespondentCode() {
 export async function saveAssessmentRecord(record: AssessmentRecord) {
   if (!isSupabaseConfigured()) {
     console.warn("Supabase is not configured. Assessment result was not saved.");
-    return { saved: false, reason: "Supabase environment variables are missing." };
+    return {
+      saved: false,
+      reason: "Supabase environment variables are missing.",
+    };
   }
+
+  const assessmentRecord = {
+    respondent_code: record.respondent_code,
+    grade_level: record.grade_level ?? null,
+    strand: record.strand ?? null,
+    section: record.section ?? null,
+    responses: record.responses,
+    competency_scores: record.competency_scores,
+    top_results: record.top_results,
+  };
 
   const response = await fetch(`${SUPABASE_URL}/rest/v1/student_assessments`, {
     method: "POST",
@@ -32,12 +48,14 @@ export async function saveAssessmentRecord(record: AssessmentRecord) {
       "Content-Type": "application/json",
       Prefer: "return=minimal",
     },
-    body: JSON.stringify(record),
+    body: JSON.stringify(assessmentRecord),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to save assessment record: ${response.status} ${errorText}`);
+    throw new Error(
+      `Failed to save assessment record: ${response.status} ${errorText}`
+    );
   }
 
   return { saved: true };
