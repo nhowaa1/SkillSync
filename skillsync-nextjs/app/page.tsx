@@ -1647,35 +1647,53 @@ function LandingPage({ onStart }: { onStart: () => void }) {
           <span className="font-jakarta text-xl font-bold text-white">SkillSync</span>
         </div>
 
-        <div className="hidden items-center gap-6 md:flex">
-          <a href="#methodology" className="text-sm font-medium text-navy-200 transition-colors hover:text-white">Methodology</a>
-          <button onClick={onStart} className="rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-teal-400">
-            Start Assessment
-          </button>
-        </div>
-      </nav>
+ <div className="hidden items-center gap-4 md:flex">
+  <a
+    href="#methodology"
+    className="text-sm font-medium text-navy-200 transition-colors hover:text-white"
+  >
+    Methodology
+  </a>
 
-      <main className="relative z-10 mx-auto max-w-7xl px-6 py-12">
-        <div className="grid min-h-[70vh] items-center gap-12 lg:grid-cols-2">
-          <section className="fade-in">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-navy-600 bg-navy-800/50 px-4 py-2">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-teal-400" />
-              <span className="text-sm font-medium text-teal-300">Knowledge Management Framework</span>
-            </div>
+  <a
+    href="/login"
+    className="rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-navy-100 transition-all hover:border-teal-300 hover:bg-white/10 hover:text-white"
+  >
+    Admin Login
+  </a>
 
-            <h1 className="mb-6 font-jakarta text-5xl font-extrabold leading-tight text-white md:text-6xl lg:text-7xl">
-              Skill<span className="text-teal-400">Sync</span>
-            </h1>
-            <p className="mb-4 text-xl font-light text-navy-200 md:text-2xl">
-              A KM-Integrated Career Pathway Recommendation System
-            </p>
-            <p className="mb-8 max-w-xl text-lg leading-relaxed text-navy-300">
-              Discover your ideal career pathway through a comprehensive assessment system. SkillSync analyzes your work styles, skills, abilities, and knowledge areas to provide personalized, data-driven career recommendations aligned with O*NET competency domains.
-            </p>
+  <button
+    onClick={onStart}
+    className="rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-teal-400"
+  >
+    Start Assessment
+  </button>
+</div>
+        </nav>
 
-            <div className="flex flex-col gap-4 sm:flex-row">
-              <button onClick={onStart} className="pulse-glow group flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 px-8 py-4 text-lg font-semibold text-white transition-all hover:from-teal-400 hover:to-teal-500">
-                Start Assessment
+        <main className="relative z-10 mx-auto max-w-7xl px-6 py-12">
+          <div className="grid min-h-[70vh] items-center gap-12 lg:grid-cols-2">
+            <section className="fade-in">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-navy-600 bg-navy-800/50 px-4 py-2">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-teal-400" />
+                <span className="text-sm font-medium text-teal-300">Knowledge Management Framework</span>
+              </div>
+
+              <h1 className="mb-6 font-jakarta text-5xl font-extrabold leading-tight text-white md:text-6xl lg:text-7xl">
+                Skill<span className="text-teal-400">Sync</span>
+              </h1>
+              <p className="mb-4 text-xl font-light text-navy-200 md:text-2xl">
+                A KM-Integrated Career Pathway Recommendation System
+              </p>
+              <p className="mb-8 max-w-xl text-lg leading-relaxed text-navy-300">
+                Discover your ideal career pathway through a comprehensive assessment system. SkillSync analyzes your work styles, skills, abilities, and knowledge areas to provide personalized, data-driven career recommendations aligned with O*NET competency domains.
+              </p>
+
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <button onClick={onStart} className="pulse-glow group flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 px-8 py-4 text-lg font-semibold text-white transition-all hover:from-teal-400 hover:to-teal-500">
+
+                  Start Assessment
+
                 <SvgIcon name="arrowRight" className="h-5 w-5 transition-transform group-hover:translate-x-1" />
               </button>
               <a href="#methodology" className="flex items-center justify-center gap-2 rounded-xl border border-navy-500 px-8 py-4 text-lg font-semibold text-white transition-all hover:bg-navy-800/50">
